@@ -1,0 +1,7 @@
+{
+  "name": "InvoiceScanner",
+  "description": "Automated InvoiceScanner scanner and data extraction tool using Gemini Flash 2.5.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

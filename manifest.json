@@ -1,0 +1,21 @@
+{
+  "name": "InvoiceScanner",
+  "short_name": "InvoiceScanner",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f59e0b",
+  "description": "Automated invoice scanner and data extraction tool using Gemini Flash 2.5.",
+  "icons": [
+    {
+      "src": "https://aistudiocdn.com/file-text.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "https://aistudiocdn.com/file-text.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

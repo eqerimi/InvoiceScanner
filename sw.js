@@ -8,6 +8,7 @@ const INITIAL_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('Opened cache');
@@ -17,13 +18,11 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // We use a Stale-While-Revalidate strategy modified for runtime caching of CDN assets
-  // 1. Try cache
-  // 2. Fallback to network
-  // 3. Update cache if network succeeds (Dynamic Caching)
-  
   // Skip cross-origin requests that might be opaque/troublesome or API calls
   if (event.request.method !== 'GET') return;
+  
+  // Skip chrome-extension or other non-http schemes
+  if (!event.request.url.startsWith('http')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -63,6 +62,6 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });

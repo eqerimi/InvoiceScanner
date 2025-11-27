@@ -1,37 +1,35 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { KescoBill } from "../types";
+import { Invoice } from "../types";
 
 // Initialize the Gemini Client
-// Note: process.env.API_KEY is guaranteed to be available in this environment
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const SYSTEM_INSTRUCTION = `
-You are a specialized data extraction engine for KESCO Energy bills.
-Your ONLY purpose is to extract fields exactly according to the provided JSON schema.
-Look for "DPR" to find the Customer ID.
-"Totali" or "Shuma" usually indicates the final amount.
-A1 and A2 are distinct meter readings; do not confuse them.
-If a field is illegible, return null, do not hallucinate data.
+You are an expert Accounts Payable AI assistant. 
+Your goal is to extract structured data from invoices for accounting and payment purposes.
+- Identify the Vendor Name accurately.
+- Extract the Invoice Number (often labeled Inv No, Invoice #, Fatura, etc.).
+- Extract dates: Invoice Date and Due Date. If Due Date is not explicit, leave null.
+- Extract financial amounts: Total Amount (payable), Tax Amount (VAT/GST), and Net Amount (Subtotal).
+- Extract Payment Information: Look for IBAN, Bank Account Number, or SWIFT.
+- Determine the Currency symbol/code (EUR, USD, GBP, etc.).
+- Do not make up data. If a field is missing, return null or empty string.
 `;
 
-const BILL_SCHEMA: Schema = {
+const INVOICE_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
-    customer_id: { type: Type.STRING, description: "The DPR number, e.g., 'DPR 90050061'" },
-    customer_name: { type: Type.STRING },
-    billing_month: { type: Type.STRING, description: "Format MM-YYYY" },
-    meter_readings: {
-      type: Type.OBJECT,
-      properties: {
-        A1_high_tariff: { type: Type.NUMBER },
-        A2_low_tariff: { type: Type.NUMBER },
-      },
-      required: ["A1_high_tariff", "A2_low_tariff"],
-    },
-    total_amount_eur: { type: Type.NUMBER },
-    invoice_date: { type: Type.STRING, description: "ISO 8601 Date" },
+    vendor_name: { type: Type.STRING, description: "Name of the supplier or service provider" },
+    invoice_number: { type: Type.STRING, description: "Unique identifier for the invoice" },
+    invoice_date: { type: Type.STRING, description: "YYYY-MM-DD format" },
+    due_date: { type: Type.STRING, description: "YYYY-MM-DD format", nullable: true },
+    currency: { type: Type.STRING, description: "ISO Currency Code e.g. EUR, USD" },
+    total_amount: { type: Type.NUMBER, description: "Final payable amount including tax" },
+    tax_amount: { type: Type.NUMBER, description: "Total tax/VAT amount" },
+    net_amount: { type: Type.NUMBER, description: "Total amount before tax (Subtotal)" },
+    iban: { type: Type.STRING, description: "International Bank Account Number for payment", nullable: true },
   },
-  required: ["customer_id", "customer_name", "billing_month", "meter_readings", "total_amount_eur", "invoice_date"],
+  required: ["vendor_name", "invoice_number", "invoice_date", "total_amount", "currency"],
 };
 
 /**
@@ -70,7 +68,7 @@ const resizeImage = (file: File, maxWidth = 1024): Promise<string> => {
   });
 };
 
-export const scanBillWithGemini = async (file: File): Promise<KescoBill> => {
+export const scanInvoiceWithGemini = async (file: File): Promise<Invoice> => {
   try {
     const base64Image = await resizeImage(file);
 
@@ -85,23 +83,30 @@ export const scanBillWithGemini = async (file: File): Promise<KescoBill> => {
             }
           },
           {
-            text: "Extract data from this KESCO invoice."
+            text: "Extract data from this invoice for accounting."
           }
         ]
       },
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
-        responseSchema: BILL_SCHEMA,
-        temperature: 0.1, // Deterministic as per PRD
+        responseSchema: INVOICE_SCHEMA,
+        temperature: 0.1, 
       }
     });
 
     const text = response.text;
     if (!text) throw new Error("No data returned from Gemini");
 
-    const data = JSON.parse(text) as KescoBill;
-    return data;
+    const data = JSON.parse(text) as Invoice;
+    // Normalize nulls if necessary
+    return {
+      ...data,
+      due_date: data.due_date || null,
+      iban: data.iban || null,
+      tax_amount: data.tax_amount || 0,
+      net_amount: data.net_amount || 0
+    };
 
   } catch (error) {
     console.error("Extraction failed:", error);

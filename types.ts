@@ -1,16 +1,14 @@
-export interface MeterReading {
-  A1_high_tariff: number;
-  A2_low_tariff: number;
-}
-
-export interface KescoBill {
-  id?: string; // Internal ID for local storage
-  customer_id: string; // DPR number
-  customer_name: string;
-  billing_month: string; // MM-YYYY
-  meter_readings: MeterReading;
-  total_amount_eur: number;
-  invoice_date: string; // ISO 8601
+export interface Invoice {
+  id?: string; // Internal ID
+  vendor_name: string;
+  invoice_number: string;
+  invoice_date: string; // YYYY-MM-DD
+  due_date: string | null; // YYYY-MM-DD
+  currency: string;
+  total_amount: number;
+  tax_amount: number;
+  net_amount: number; // Subtotal
+  iban: string | null; // Payment info
   scanned_at?: string;
 }
 
